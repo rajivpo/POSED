@@ -26,12 +26,15 @@ Test4: Trying 2 HL, L1:60hu L2:30hu. Used 3000 epochs instead of 1000 and got a 
 Test5: Back to 1 HL, only 20hu this time. Results did get worse, around 24.06
 Test6: Trying something weird: 1HL, 1HU. This completely failed, was getting valid loss as high as 700.
 Test7: I decreased the batch size down to 50 and there was a very marginal improvement to 19.75 validation loss.
+Test8: 1HL, 50hu, subbed dropout for L1 regularization to induce sparsity, TrainMSE: 20.285, ValidMSE: 20.323
 
 It seems I can't really get much better than 19% MSE. It seems the other things may be doing better than NN at stuff like this.
 
 I've also outputted various weight matrix tests to csv files, if you want to look at them on GitHub. It doesn't
 seem like there is any discernable pattern to me. I've calc'd the std dev of each of the variables and there'll
 all very close to each other.
+
+Post-L1 regularization, there is some sparsity but unfortunately mostly for hidden units and not variables themselves.
 
 """
 
@@ -69,7 +72,7 @@ def neural_network_model(data):
 
     l1 = tf.add(tf.matmul(data,hidden_1_layer['weights']), hidden_1_layer['biases'])
     l1 = tf.nn.relu(l1)
-    l1 = tf.nn.dropout(l1, pkeep)
+    #l1 = tf.nn.dropout(l1, pkeep)
 
     # l2 = tf.add(tf.matmul(l1,hidden_2_layer['weights']), hidden_2_layer['biases'])
     # l2 = tf.nn.relu(l2)
@@ -88,9 +91,15 @@ def train_neural_network(x):
     full_train_x, full_train_y, text_x, test_y = getData()
     prediction, weight_matrix = neural_network_model(x)
     cost = tf.reduce_mean(tf.square(y - prediction))
-    optimizer = tf.train.AdamOptimizer().minimize(cost)
+    l1_regularizer = tf.contrib.layers.l1_regularizer(scale=0.005, scope=None)
+
+    weights = tf.trainable_variables() # all vars of graph
+    regularization_penalty = tf.contrib.layers.apply_regularization(l1_regularizer, weights)
+
+    regularized_loss = cost + regularization_penalty
+    optimizer = tf.train.GradientDescentOptimizer(0.05).minimize(regularized_loss)
     
-    num_epochs = 500
+    num_epochs = 250
 
     whole_train_loss = 0
     whole_valid_loss = 0
@@ -117,12 +126,12 @@ def train_neural_network(x):
                     epoch_x = train_x[batch_no*batch_size:(batch_no+1)*batch_size]
                     epoch_y = train_y[batch_no*batch_size:(batch_no+1)*batch_size]
                     _, c, pred = sess.run([optimizer, cost, prediction], feed_dict = {x: epoch_x, y: epoch_y, pkeep: myPkeep})
-                    train_loss += c
 
                 _, valid_loss = sess.run([prediction, cost], feed_dict = {x: valid_x, y: valid_y, pkeep: 1.0})
-
+                _, train_loss = sess.run([prediction, cost], feed_dict = {x: train_x, y: train_y, pkeep: 1.0})
                 if (epoch_no % 50 == 0):
                     print('valid loss at epoch', epoch_no, 'is', valid_loss)
+                    print('training loss at epoch', epoch_no, 'is', train_loss)
 
             whole_train_loss += train_loss
             whole_valid_loss += valid_loss
