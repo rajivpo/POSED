@@ -20,9 +20,6 @@ fold5 = np.loadtxt('../projData/ObesityCVFold_5.csv', delimiter=',', skiprows =1
 #define parameters
 l1_ratio = np.linspace(.01, .9, 9)
 alpha = [.1, .5, .7, .9, .95, .99, 1]
-
-fold = np.array([1,1,1,1,1]);
-
 weights = np.zeros([len(l1_ratio), len(alpha), 5, 123])
 bias = np.zeros([len(l1_ratio), len(alpha), 5])
 RMSE = np.zeros([len(l1_ratio), len(alpha), 5])
@@ -68,3 +65,5 @@ weights = np.mean(weights, 2)
 [rmin, cmin] = np.unravel_index(RMSE.argmin(), np.shape(RMSE))
 biasMin = bias[rmin, cmin]
 weightsMin = weights[rmin, cmin, :]
+alphaMin = alpha[cmin]
+l1_ratioMin = alpha[rmin]
