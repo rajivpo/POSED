@@ -88,6 +88,5 @@ Xtest = testData[:, 0:col - 1]
 Xtest = scalr.fit_transform(Xtest)
 yHatTest = np.matmul(Xtest, weightsMin) + biasMin
 errTest = math.sqrt(np.sum(np.power(yHatTest - testData[:, col-1], 2))/r)
-
-
+np.savetxt('svrWeights.csv', weightsMin, delimiter=',')
 

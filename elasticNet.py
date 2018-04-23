@@ -85,3 +85,6 @@ Xtest = testData[:, 0:c - 1]
 Xtest = scalr.fit_transform(Xtest)
 yHatTest = np.matmul(Xtest, weightsMin) + biasMin
 RMSEtest = math.sqrt(np.sum(np.power(yHatTest - testData[:, c-1], 2))/r)
+
+#save weights as csv
+np.savetxt('enetW.csv', weightsMin, delimiter=',')
