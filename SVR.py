@@ -10,6 +10,7 @@ import numpy as np
 import math
 from sklearn.svm import LinearSVR
 from sklearn.preprocessing import StandardScaler
+import time
 
 scalr = StandardScaler();
 epsilon = np.linspace(0, .9, num=10)
@@ -52,6 +53,9 @@ for f in range(0, 5):
             [r, col] = np.shape(test)
             X = train[:, 0:col-1]
             y = train[:, col-1]
+            std = np.std(y)
+            mu = np.mean(y)
+            y = (y - mu)/std
             X = scalr.fit_transform(X)
             
             #train algo and get weights  
@@ -65,20 +69,43 @@ for f in range(0, 5):
             Xtest = test[:, 0:col-1]
             Xtest = scalr.fit_transform(Xtest)
             yHat = mdl.predict(Xtest)
+            yHat = yHat*std + mu
             err[e, c, f] = math.sqrt(np.sum(np.power(yHat - test[:, col-1], 2))/r)
             
 #determine ideal combo of alpha + l1_ratio from crossval
 err = np.mean(err,2)
-bias = np.mean(bias, 2)
-weights = np.mean(weights, 2)
 
 #get best values from 
 [rmin, cmin] = np.unravel_index(err.argmin(), np.shape(err))
 errmin = err[rmin, cmin]
-biasMin = bias[rmin, cmin]
-weightsMin = weights[rmin, cmin, :]
 Cmin = C[cmin]
 epsilonmin = epsilon[rmin]
+
+#load trainData
+trainData = np.loadtxt('../projData/ObesityFullTrainSet.csv', delimiter=',', skiprows = 1)
+[r, c] = trainData.shape
+Xtrain = trainData[:,0:c-1]
+yTrain = trainData[:,c-1]
+Xtrain = scalr.fit_transform(Xtrain)
+std = np.std(yTrain)
+mu = np.mean(yTrain)
+yTrain = (yTrain - mu)/std
+
+#train model
+mdl = LinearSVR(C=Cmin, epsilon=epsilonmin)
+tot = 0;
+for u in range(0, 100):
+    starttime = time.time()
+    mdl.fit(X, y)
+    tot_time = time.time() - starttime
+    tot += tot_time
+tot/=100
+
+trainW = mdl.coef_
+trainB = mdl.intercept_
+yHatTrain = np.matmul(Xtrain, trainW) + trainB
+yHatTrain = yHatTrain*std + mu
+trainError = math.sqrt(np.sum(np.power(yHatTrain - trainData[:, c-1], 2))/r)
 
 
 #load testData and test with appropriate vals
@@ -86,7 +113,17 @@ testData = np.loadtxt('../projData/ObesityTestSet.csv', delimiter=',', skiprows 
 [r, col] = testData.shape
 Xtest = testData[:, 0:col - 1]
 Xtest = scalr.fit_transform(Xtest)
-yHatTest = np.matmul(Xtest, weightsMin) + biasMin
+tot2 = 0
+for v in range(0,100):
+    starttime2 = time.time()
+    mdl.fit(X, y)
+    tot_time2 = time.time() - starttime2
+    tot2 += tot_time2
+tot2/=100
+mdl.fit(X, y)
+yHatTest = np.matmul(Xtest, trainW) + trainB
+yHatTest = yHatTest*std + mu
 errTest = math.sqrt(np.sum(np.power(yHatTest - testData[:, col-1], 2))/r)
-np.savetxt('svrWeights.csv', weightsMin, delimiter=',')
+#save weights as csv
+np.savetxt('svrW.csv', trainW, delimiter=',')
 
